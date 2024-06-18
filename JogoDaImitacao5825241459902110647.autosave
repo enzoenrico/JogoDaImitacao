@@ -1,0 +1,215 @@
+// Variáveis globais
+int tela = 0;
+float[] angulosModelo = new float[4]; // 4 membros (braços e pernas) com 1 ângulo cada
+float[] angulosJogador = new float[4];
+float[][] ancorasBraços = new float[2][7]; // Ângulos de âncoras para os braços
+float[][] ancorasPernas = new float[2][7]; // Ângulos de âncoras para as pernas
+float tempoInicial, tempoMaximo = 10, tempoMinimo = 5, reducaoTempo = 2;
+boolean perdeu = false;
+float tolerancia = 0.1; // Aumenta a área considerada "correta"
+int vitorias = 0; // Contagem de vitórias
+
+// Estado das teclas
+boolean[] teclasPressionadas = new boolean[4];
+
+void setup() {
+    size(1024, 768);
+    inicializaAncoras();
+    inicializaPersonagens();
+}
+
+void inicializaAncoras() {
+    float espacamento = TWO_PI / 7;
+    for (int i = 0; i < 7; i++) {
+        ancorasBraços[0][i] = -PI + i * espacamento; // Ângulos de âncora para o braço esquerdo
+        ancorasBraços[1][i] = -PI + i * espacamento; // Ângulos de âncora para o braço direito
+        ancorasPernas[0][i] = -PI + i * espacamento; // Ângulos de âncora para a perna esquerda
+        ancorasPernas[1][i] = -PI + i * espacamento; // Ângulos de âncora para a perna direita
+    }
+}
+
+void inicializaPersonagens() {
+    for (inti = 0; i < 4; i++) {
+        if (i < 2) {
+            angulosModelo[i] = ancorasBraços[i][int(random(7))];
+            angulosJogador[i] = ancorasBraços[i][int(random(7))];
+        } else {
+            angulosModelo[i] = ancorasPernas[i - 2][int(random(7))];
+            angulosJogador[i] = ancorasPernas[i - 2][int(random(7))];
+        }
+    }
+    tempoInicial = millis();
+}
+
+void desenhaPersonagem(float[] angulos, float x, float y) {
+    pushMatrix();
+    translate(x, y);
+    fill(255); // Cor branca para o boneco
+    rect( -40, -120, 80, 240); // Corpo mais esguio
+    
+    //Desenhar a cabeça
+    ellipse(0, -160,80, 80);
+    
+    //Braço Direito
+    pushMatrix();
+    translate(50, -100);
+    rotate(angulos[0]);
+    rect( -10, -15,150, 30); // Braços mais finos e longos
+    popMatrix();
+    
+    //Braço Esquerdo
+    pushMatrix();
+    translate( -50, -100);
+    rotate(angulos[1]);
+    rect( -140, -15, 150, 30); // Braços mais finos e longos
+    popMatrix();
+    
+    //Perna Direita
+    pushMatrix();
+    translate(20, 120);
+    rotate(angulos[2]);
+    rect( -10, -10,30, 150); // Pernas mais finas e longas
+    popMatrix();
+    
+    //Perna Esquerda
+    pushMatrix();
+    translate( -20,120);
+    rotate(angulos[3]);
+    rect( -10, -10,30, 150); // Pernas mais finas e longas
+    popMatrix();
+    
+    popMatrix();
+}
+
+float calculaAnguloMaisProximo(float anguloAtual, float[] ancoras) {
+    float anguloMaisProximo = ancoras[0];
+    float menorDistancia = dist(cos(anguloAtual), sin(anguloAtual), cos(ancoras[0]), sin(ancoras[0]));
+    
+    for (int i = 1; i < ancoras.length; i++) {
+        float distancia = dist(cos(anguloAtual), sin(anguloAtual), cos(ancoras[i]), sin(ancoras[i]));
+        if (distancia < menorDistancia) {
+            anguloMaisProximo = ancoras[i];
+            menorDistancia = distancia;
+        }
+    }
+    return anguloMaisProximo;
+}
+
+void draw() {
+    background(255);
+    
+    switch(tela) {
+        case0:
+        telaInicial();
+        break;
+        case1:
+        telaJogo();
+        break;
+        case2:
+        telaFinal();
+        break;
+    };
+};
+
+void telaInicial() {
+    textAlign(CENTER, CENTER);
+    textSize(40);
+    fill(0);
+    text("Jogo da Imitação", width / 2, height / 2 - 200);
+    textSize(25);
+    text("Caio Berto Seixas de Araujo", width / 2, height / 2 - 50);
+    text("Bruno Ribeiro", width / 2, height / 2 - 20);
+    text("João Otavio Sene", width / 2, height / 2 + 10);
+    text("Betina Broch", width / 2, height / 2 + 40);
+    text("Pressione ENTER para começar",width / 2, height / 2 + 200);
+    
+    if (keyPressed && key == ENTER) {
+        tela = 1;
+        inicializaPersonagens(); // Reinicializar os personagens ao começar o jogo
+        tempoMaximo = 10; // Reinicia o tempo máximo ao começar o jogo
+        vitorias = 0; // Reinicia a contagemde vitórias
+        tempoInicial = millis();
+    }
+}
+
+void telaJogo() {
+    float tempoRestante = tempoMaximo - (millis() - tempoInicial) / 1000.0;
+    
+    if (tempoRestante <= 0) {
+        tela = 2;
+        perdeu = true;
+    }
+    
+    //Desenho dos personagens
+    desenhaPersonagem(angulosModelo, width / 4, height / 2);
+    desenhaPersonagem(angulosJogador, 3 * width / 4,height / 2);
+    
+    //Controles do jogador
+    if (keyPressed) {
+        if (key == '1') angulosJogador[0] += 0.05;
+        if (key == '2') angulosJogador[1] += 0.05;
+        if (key == '3') angulosJogador[2] += 0.05;
+        if (key == '4') angulosJogador[3] += 0.05;
+    }
+    
+    //Verificação da vitória
+    if (verificaVitoria()) {
+        vitorias++; // Incrementa a contagem de vitórias
+        tempoMaximo = max(tempoMinimo, tempoMaximo - reducaoTempo); // Reduz o tempo máximo
+        inicializaPersonagens(); // Reinicia os personagens
+        tempoInicial = millis(); // Reinicia o tempo
+    }
+    
+    //Exibição do tempo restante
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    fill(0);
+    text("Tempo restante : " + nf(tempoRestante, 0, 2), width / 2, 50);
+}
+
+boolean verificaVitoria() {
+    for (int i = 0; i < 4; i++) {
+        if (abs(angulosJogador[i] - angulosModelo[i]) > tolerancia) return false;
+    }
+    return true;
+}
+
+void telaFinal() {
+    textAlign(CENTER, CENTER);
+    textSize(40);
+    fill(0);
+    text("Vitórias: " + vitorias, width / 2, height / 2); //Exibe o número de vitórias
+    text("Pressione ENTER para reiniciar", width / 2, height / 2 + 200);
+    
+    if (keyPressed && key == ENTER) {
+        tela = 0;
+        inicializaPersonagens();
+        perdeu = false;
+    }
+}
+
+void keyPressed() {
+    if (key == '1') teclasPressionadas[0] = true;
+    if (key == '2') teclasPressionadas[1] = true;
+    if (key == '3') teclasPressionadas[2] = true;
+    if (key == '4') teclasPressionadas[3] = true;
+}
+
+void keyReleased() {
+    if (key == '1') {
+        teclasPressionadas[0] = false;
+        angulosJogador[0] = calculaAnguloMaisProximo(angulosJogador[0], ancorasBraços[1]);
+    }
+    if (key == '2') {
+        teclasPressionadas[1] = false;
+        angulosJogador[1] = calculaAnguloMaisProximo(angulosJogador[1], ancorasBraços[0]);
+    }
+    if (key == '3') {
+        teclasPressionadas[2] = false;
+        angulosJogador[2] = calculaAnguloMaisProximo(angulosJogador[2], ancorasPernas[1]);
+    }
+    if (key == '4') {
+        teclasPressionadas[3] = false;
+        angulosJogador[3] = calculaAnguloMaisProximo(angulosJogador[3], ancorasPernas[0]);
+    }
+}
